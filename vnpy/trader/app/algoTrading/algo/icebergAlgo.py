@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import division
+
+import os
 from collections import OrderedDict
 
 from six import text_type
@@ -12,7 +14,27 @@ from vnpy.trader.uiQt import QtWidgets, QtGui
 from vnpy.trader.app.algoTrading.algoTemplate import AlgoTemplate
 from vnpy.trader.app.algoTrading.uiAlgoWidget import AlgoWidget
 
+from tdexApi import Tdex
+import json
 
+REST_HOST = 'https://tl.tdex.com/openapi/v1'
+base_dir = os.path.join(os.getcwd())
+filePath = os.path.join(base_dir, 'TDEX_connect.json')
+
+f = file(filePath)
+setting = json.load(f)
+
+apiKey = str(setting['apiKey'])
+apiSecret = str(setting['apiSecret'])
+# print(apiKey, apiSecret)
+
+options = {
+    'apiKey': apiKey,
+    'apiSecret': apiSecret,
+    'url': REST_HOST,
+}
+
+tdex = Tdex(options)
 
 STATUS_FINISHED = set([STATUS_ALLTRADED, STATUS_CANCELLED, STATUS_REJECTED])
 
@@ -40,6 +62,7 @@ class IcebergAlgo(AlgoTemplate):
         self.count = 0          # 执行计数
         self.vtOrderID = ''     # 委托号
         self.tradedVolume = 0   # 成交数量
+        self.fillVolume = 0
         
         self.subscribe(self.vtSymbol)
         self.paramEvent()
@@ -79,6 +102,10 @@ class IcebergAlgo(AlgoTemplate):
             return
         
         self.count = 0
+
+        if self.vtSymbol == 'BTCUSD.TDEX':
+            print('进入TDEX 冰山')
+            self.vtSymbol = 'BTCUSD.BITMEX'
         
         contract = self.getContract(self.vtSymbol)
         if not contract:
@@ -90,11 +117,37 @@ class IcebergAlgo(AlgoTemplate):
             orderVolume = min(orderVolume, self.display)
             
             if self.direction == DIRECTION_LONG:
-                self.vtOrderID = self.buy(self.vtSymbol, self.price,
-                                          orderVolume, offset=self.offset)
+                # self.vtOrderID = self.buy(self.vtSymbol, self.price,
+                #                           orderVolume, offset=self.offset)
+                # 发出委托
+                dataBuy = {
+                    'cid': 1,
+                    'side': 0 if self.direction == '多' else 1,
+                    'scale': 20,
+                    'volume': int(orderVolume),
+                    'visible': -1,
+                    'price': int(self.price),
+                }
+                resBuy = tdex.futuresOpen(dataBuy)
+                print(resBuy)
+                if resBuy['status'] == 0:
+                    self.fillVolume = orderVolume + self.fillVolume
+                    if self.fillVolume >= self.volume:
+                        self.stop()
             else:
-                self.vtOrderID = self.sell(self.vtSymbol, self.price,
-                                           orderVolume, offset=self.offset)
+                # self.vtOrderID = self.sell(self.vtSymbol, self.price,
+                #                            orderVolume, offset=self.offset)
+                # 发出委托
+                dataSell = {
+                    'cid': 1,
+                    'side': 0 if self.direction == '多' else 1,
+                    'scale': 20,
+                    'volume': int(orderVolume),
+                    'visible': -1,
+                    'price': int(self.price),
+                }
+                resSell = tdex.futuresOpen(dataSell)
+                print(resSell)
             
         self.varEvent()
         
@@ -124,7 +177,7 @@ class IcebergAlgo(AlgoTemplate):
         d[u'数量'] = self.volume
         d[u'挂出数量'] = self.display
         d[u'运行间隔'] = self.interval
-        d[u'开平'] = self.offset
+        # d[u'开平'] = self.offset
         self.putParamEvent(d)
 
 
@@ -190,8 +243,8 @@ class IcebergWidget(AlgoWidget):
         grid.addWidget(self.lineDisplay, 4, 1)     
         grid.addWidget(Label(u'运行间隔'), 5, 0)
         grid.addWidget(self.lineInterval, 5, 1)     
-        grid.addWidget(Label(u'开平'), 6, 0)
-        grid.addWidget(self.comboOffset, 6, 1)
+        # grid.addWidget(Label(u'开平'), 6, 0)
+        # grid.addWidget(self.comboOffset, 6, 1)
         
         return grid
     

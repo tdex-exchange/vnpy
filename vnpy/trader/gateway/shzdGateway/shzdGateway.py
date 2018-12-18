@@ -77,7 +77,7 @@ class ShzdGateway(VtGateway):
     def connect(self):
         """连接"""
         try:
-            f = open(self.filePath)
+            f = file(self.filePath)
         except IOError:
             log = VtLogData()
             log.gatewayName = self.gatewayName
@@ -87,7 +87,6 @@ class ShzdGateway(VtGateway):
         
         # 解析json文件
         setting = json.load(f)
-        f.close()
         try:
             frontAddress = str(setting['frontAddress'])
             frontPort = int(setting['frontPort'])

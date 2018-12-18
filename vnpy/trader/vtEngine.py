@@ -113,6 +113,9 @@ class MainEngine(object):
         
         if gateway:
             gateway.connect()
+            
+            # 接口连接后自动执行数据库连接的任务
+            self.dbConnect()        
    
     #----------------------------------------------------------------------
     def subscribe(self, subscribeReq, gatewayName):
@@ -413,7 +416,7 @@ class DataEngine(object):
         self.workingOrderDict = {}  # 可撤销委托
         self.tradeDict = {}
         self.accountDict = {}
-        self.positionDict = {}
+        self.positionDict= {}
         self.logList = []
         self.errorList = []
         
@@ -535,6 +538,7 @@ class DataEngine(object):
     def saveContracts(self):
         """保存所有合约对象到硬盘"""
         f = shelve.open(self.contractFilePath)
+        print(self.contractDict)
         f['data'] = self.contractDict
         f.close()
     
@@ -700,7 +704,7 @@ class LogEngine(object):
             if not filename:
                 filename = 'vt_' + datetime.now().strftime('%Y%m%d') + '.log'
             filepath = getTempPath(filename)
-            self.fileHandler = logging.FileHandler(filepath, mode='w', encoding='utf-8')
+            self.fileHandler = logging.FileHandler(filepath)
             self.fileHandler.setLevel(self.level)
             self.fileHandler.setFormatter(self.formatter)
             self.logger.addHandler(self.fileHandler)

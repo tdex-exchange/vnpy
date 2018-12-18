@@ -21,11 +21,10 @@ import requests
 import websocket
 
 
-REST_HOST = 'https://www.bitmex.com/api/v1'
-WEBSOCKET_HOST = 'wss://www.bitmex.com/realtime'
+REST_HOST = 'https://testnet.bitmex.com/api/v1'
+WEBSOCKET_HOST = 'wss://testnet.bitmex.com/realtime'
 
-TESTNET_REST_HOST = 'https://testnet.bitmex.com/api/v1'
-TESTNET_WEBSOCKET_HOST = 'wss://testnet.bitmex.com/realtime'
+
 
 
 ########################################################################
@@ -37,7 +36,6 @@ class BitmexRestApi(object):
         """Constructor"""
         self.apiKey = ''
         self.apiSecret = ''
-        self.host = ''
         
         self.active = False
         self.reqid = 0
@@ -51,15 +49,10 @@ class BitmexRestApi(object):
         }
     
     #----------------------------------------------------------------------
-    def init(self, apiKey, apiSecret, testnet=False):
+    def init(self, apiKey, apiSecret):
         """初始化"""
         self.apiKey = apiKey
         self.apiSecret = apiSecret
-        
-        if testnet:
-            self.host = TESTNET_REST_HOST
-        else:
-            self.host = REST_HOST
         
     #----------------------------------------------------------------------
     def start(self, n=3):
@@ -92,29 +85,39 @@ class BitmexRestApi(object):
     def processReq(self, req, i):
         """处理请求"""
         method, path, callback, params, postdict, reqid = req
-        url = self.host + path
-        expires = int(time() + 5) 
-        
+        url = REST_HOST + path
+        expires = int(time() + 5)
+        postdict = json.dumps(postdict)
         rq = requests.Request(url=url, data=postdict)
         p = rq.prepare()
-        
+
         header = copy(self.header)
         header['api-expires'] = str(expires)
         header['api-key'] = self.apiKey
+
+        print(p.body)
         header['api-signature'] = self.generateSignature(method, path, expires, params, body=p.body)
         
         # 使用长连接的session，比短连接的耗时缩短80%
         session = self.sessionDict[i]
+        _proxies = {
+            'http': '127.0.0.1:1080',
+            'https': '127.0.0.1:1080'
+        }
+        header['Content-Type'] = 'application/json'
+
         resp = session.request(method, url, headers=header, params=params, data=postdict)
         
         #resp = requests.request(method, url, headers=header, params=params, data=postdict)
         
         code = resp.status_code
         d = resp.json()
-        
+        print("************")
+        print(d)
         if code == 200:
             callback(d, reqid)
         else:
+            print("接口报错了")
             self.onError(code, d)    
     
     #----------------------------------------------------------------------
@@ -134,13 +137,14 @@ class BitmexRestApi(object):
         """生成签名"""
         # 对params在HTTP报文路径中，以请求字段方式序列化
         if params:
-            query = urlencode(params.items())
+            query = urlencode(sorted(params.items()))
             path = path + '?' + query
         
         if body is None:
             body = ''
         
         msg = method + '/api/v1' + path + str(expires) + body
+        print (msg)
         signature = hmac.new(self.apiSecret, msg,
                              digestmod=hashlib.sha256).hexdigest()
         return signature
@@ -168,17 +172,12 @@ class BitmexWebsocketApi(object):
         self.ws = None
         self.thread = None
         self.active = False
-        self.host = ''
     
     #----------------------------------------------------------------------
-    def start(self, testnet=False):
+    def start(self):
         """启动"""
-        if testnet:
-            self.host = TESTNET_WEBSOCKET_HOST
-        else:
-            self.host = WEBSOCKET_HOST
-            
-        self.connectWs()
+        self.ws = websocket.create_connection(WEBSOCKET_HOST,
+                                              sslopt={'cert_reqs': ssl.CERT_NONE},http_proxy_host="127.0.0.1",http_proxy_port="1080")
     
         self.active = True
         self.thread = Thread(target=self.run)
@@ -189,13 +188,10 @@ class BitmexWebsocketApi(object):
     #----------------------------------------------------------------------
     def reconnect(self):
         """重连"""
-        self.connectWs()
+        self.ws = websocket.create_connection(WEBSOCKET_HOST,
+                                              sslopt={'cert_reqs': ssl.CERT_NONE},http_proxy_host="127.0.0.1",http_proxy_port="1080")
+        
         self.onConnect()
-    
-    #----------------------------------------------------------------------
-    def connectWs(self):
-        """"""
-        self.ws = websocket.create_connection(self.host, sslopt={'cert_reqs': ssl.CERT_NONE})   
         
     #----------------------------------------------------------------------
     def run(self):
@@ -204,6 +200,7 @@ class BitmexWebsocketApi(object):
             try:
                 stream = self.ws.recv()
                 data = json.loads(stream)
+                # print(data)
                 self.onData(data)
             except:
                 msg = traceback.format_exc()

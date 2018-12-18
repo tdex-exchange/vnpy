@@ -48,17 +48,18 @@ class DmaAlgo(AlgoTemplate):
     def onTick(self, tick):
         """"""
         # 发出委托
+        print('发出dma委托')
         if not self.vtOrderID:
             if self.direction == DIRECTION_LONG:
                 func = self.buy
             else:
                 func = self.sell
-                
-            self.vtOrderID = func(self.vtSymbol, self.price, self.totalVolume, 
+
+            self.vtOrderID = func(self.vtSymbol, self.price, self.totalVolume,
                                   self.priceType, self.offset)
-        
+
         # 更新变量
-        self.varEvent()        
+        self.varEvent()
         
     #----------------------------------------------------------------------
     def onTrade(self, trade):

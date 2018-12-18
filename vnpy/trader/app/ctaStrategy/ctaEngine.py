@@ -29,7 +29,7 @@ from .strategy import STRATEGY_CLASS
 class CtaEngine(AppEngine):
     """CTA策略引擎"""
     settingFileName = 'CTA_setting.json'
-    settingFilePath = getJsonPath(settingFileName, __file__)
+    settingfilePath = getJsonPath(settingFileName, __file__)
     
     STATUS_FINISHED = set([STATUS_REJECTED, STATUS_CANCELLED, STATUS_ALLTRADED])
 
@@ -229,17 +229,10 @@ class CtaEngine(AppEngine):
                     
                     if longTriggered or shortTriggered:
                         # 买入和卖出分别以涨停跌停价发单（模拟市价单）
-                        # 对于没有涨跌停价格的市场则使用5档报价
                         if so.direction==DIRECTION_LONG:
-                            if tick.upperLimit:
-                                price = tick.upperLimit
-                            else:
-                                price = tick.askPrice5
+                            price = tick.upperLimit
                         else:
-                            if tick.lowerLimit:
-                                price = tick.lowerLimit
-                            else:
-                                price = tick.bidPrice5
+                            price = tick.lowerLimit
                         
                         # 发出市价委托
                         vtOrderID = self.sendOrder(so.vtSymbol, so.orderType, 
@@ -263,6 +256,7 @@ class CtaEngine(AppEngine):
     def processTickEvent(self, event):
         """处理行情推送"""
         tick = event.dict_['data']
+        
         tick = copy(tick)
         
         # 收到tick行情后，先处理本地停止单（检查是否要立即发出）
@@ -282,8 +276,7 @@ class CtaEngine(AppEngine):
             # 逐个推送到策略实例中
             l = self.tickStrategyDict[tick.vtSymbol]
             for strategy in l:
-                if strategy.inited:
-                    self.callStrategyFunc(strategy, strategy.onTick, tick)
+                self.callStrategyFunc(strategy, strategy.onTick, tick)
     
     #----------------------------------------------------------------------
     def processOrderEvent(self, event):
@@ -441,9 +434,9 @@ class CtaEngine(AppEngine):
             strategy = self.strategyDict[name]
             
             if not strategy.inited:
-                strategy.inited = True
                 self.callStrategyFunc(strategy, strategy.onInit)
-
+                strategy.inited = True
+                
                 self.loadSyncData(strategy)                             # 初始化完成后加载同步数据
                 self.subscribeMarketData(strategy)                      # 加载同步数据后再订阅行情
             else:
@@ -506,7 +499,7 @@ class CtaEngine(AppEngine):
     #----------------------------------------------------------------------
     def saveSetting(self):
         """保存策略配置"""
-        with open(self.settingFilePath, 'w') as f:
+        with open(self.settingfilePath, 'w') as f:
             l = []
             
             for strategy in self.strategyDict.values():
@@ -521,7 +514,7 @@ class CtaEngine(AppEngine):
     #----------------------------------------------------------------------
     def loadSetting(self):
         """读取策略配置"""
-        with open(self.settingFilePath) as f:
+        with open(self.settingfilePath) as f:
             l = json.load(f)
             
             for setting in l:

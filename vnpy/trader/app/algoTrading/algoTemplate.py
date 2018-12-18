@@ -151,6 +151,8 @@ class AlgoTemplate(object):
     #----------------------------------------------------------------------
     def getContract(self, vtSymbol):
         """"""
+        if vtSymbol == 'BTCUSD.BITMEX':
+            vtSymbol = 'XBTUSD.BITMEX'
         return self.engine.getContract(self, vtSymbol)    
         
     #----------------------------------------------------------------------

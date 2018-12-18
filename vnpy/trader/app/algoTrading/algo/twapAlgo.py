@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import division
+
+import os
 from collections import OrderedDict
 
 from six import text_type
@@ -10,6 +12,27 @@ from vnpy.trader.uiQt import QtWidgets
 from vnpy.trader.app.algoTrading.algoTemplate import AlgoTemplate
 from vnpy.trader.app.algoTrading.uiAlgoWidget import AlgoWidget, QtWidgets
 
+from tdexApi import Tdex
+import json
+
+REST_HOST = 'https://tl.tdex.com/openapi/v1'
+base_dir = os.path.join(os.getcwd())
+filePath = os.path.join(base_dir, 'TDEX_connect.json')
+
+f = file(filePath)
+setting = json.load(f)
+
+apiKey = str(setting['apiKey'])
+apiSecret = str(setting['apiSecret'])
+print(apiKey, apiSecret)
+
+options = {
+    'apiKey': apiKey,
+    'apiSecret': apiSecret,
+    'url': REST_HOST,
+}
+
+tdex = Tdex(options)
 
 ########################################################################
 class TwapAlgo(AlgoTemplate):
@@ -71,6 +94,10 @@ class TwapAlgo(AlgoTemplate):
         """"""
         self.timerCount += 1
         self.timerTotal += 1
+
+        if self.vtSymbol == 'BTCUSD.TDEX':
+            print('进入TDEX刷单')
+            self.vtSymbol = 'BTCUSD.BITMEX'
         
         # 总时间结束，停止算法
         if self.timerTotal >= self.time:
@@ -81,23 +108,38 @@ class TwapAlgo(AlgoTemplate):
         if self.timerCount >= self.interval:
             self.timerCount = 0
             
-            tick = self.getTick(self.vtSymbol)
-            if not tick:
+            # tick = self.getTick(self.vtSymbol)
+            # if not tick:
+            #     return
+            data = {
+                'depth': 5,
+            }
+
+            depthData = tdex.orderBook(data)
+            # 获取行情
+            if not depthData or depthData['status'] != 0:
+                self.writeLog('获取TDEX行情接口异常')
+                print(depthData)
                 return
-            
+
+            depthData = depthData['data']
+            askList = depthData['asks']
+            bidList = depthData['bids']
+
             size = min(self.orderSize, self.totalVolume-self.tradedVolume)
             
             # 买入
             if self.direction == DIRECTION_LONG:
                 # 市场买1价小于目标买价
-                if tick.bidPrice1 < self.targetPrice:
+                if float(depthData['bids'][0]['price']) < self.targetPrice:
+
                     # 计算委托价格
                     priceMap = {
-                        1: tick.askPrice1,
-                        2: tick.askPrice2,
-                        3: tick.askPrice3,
-                        4: tick.askPrice4,
-                        5: tick.askPrice5,
+                        1: float(askList[0]['price']),
+                        2: float(askList[1]['price']),
+                        3: float(askList[2]['price']),
+                        4: float(askList[3]['price']),
+                        5: float(askList[4]['price']),
                     }
                     price = priceMap[self.priceLevel]
                     if price:
@@ -106,19 +148,28 @@ class TwapAlgo(AlgoTemplate):
                         price = self.targetPrice
                     
                     # 发出委托
-                    self.buy(self.vtSymbol, price, size)
-                    self.writeLog(u'委托买入%s，数量%s，价格%s' %(self.vtSymbol, self.orderSize, price))
+                    dataBuy = {
+                        'cid': 1,
+                        'side': 0,
+                        'scale': 20,
+                        'volume': int(self.totalVolume),
+                        'visible': -1,
+                        'price': int(price),
+                    }
+                    resBuy = tdex.futuresOpen(dataBuy)
+                    print(resBuy)
+                    self.writeLog(u'委托买入%s，数量%s，价格%s' %(self.vtSymbol, self.totalVolume, price))
             # 卖出
             if self.direction == DIRECTION_SHORT:
                 # 市场卖1价大于目标价
-                if tick.askPrice1 > self.targetPrice:
+                if float(depthData['asks'][0]['price']) > self.targetPrice:
                     # 计算委托价格
                     priceMap = {
-                        1: tick.bidPrice1,
-                        2: tick.bidPrice2,
-                        3: tick.bidPrice3,
-                        4: tick.bidPrice4,
-                        5: tick.bidPrice5,
+                        1: float(bidList[0]['price']),
+                        2: float(bidList[1]['price']),
+                        3: float(bidList[2]['price']),
+                        4: float(bidList[3]['price']),
+                        5: float(bidList[4]['price']),
                     }
                     price = priceMap[self.priceLevel]
                     if price:
@@ -127,14 +178,24 @@ class TwapAlgo(AlgoTemplate):
                         price = self.targetPrice
                     
                     # 发出委托
-                    self.sell(self.vtSymbol, price, size)
-                    self.writeLog(u'委托卖出%s，数量%s，价格%s' %(self.vtSymbol, self.orderSize, price))
+                    dataSell = {
+                        'cid': 1,
+                        'side': 1,
+                        'scale': 20,
+                        'volume': int(self.totalVolume),
+                        'visible': -1,
+                        'price': int(price),
+                    }
+                    resSell = tdex.futuresOpen(dataSell)
+                    print(resSell)
+                    # self.sell(self.vtSymbol, price, size)
+                    self.writeLog(u'委托卖出%s，数量%s，价格%s' %(self.vtSymbol, self.totalVolume, price))
         
         # 委托后等待到间隔一半的时间撤单
-        elif self.timerCount == round(self.interval/2, 0):
-            result = self.cancelAll()
-            if result:
-                self.writeLog(u'撤销之前的委托')
+        # elif self.timerCount == round(self.interval/2, 0):
+        #     result = self.cancelAll()
+        #     if result:
+        #         self.writeLog(u'撤销之前的委托')
             
         self.varEvent()
     

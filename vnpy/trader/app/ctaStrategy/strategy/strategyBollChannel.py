@@ -88,8 +88,14 @@ class BollChannelStrategy(CtaTemplate):
         super(BollChannelStrategy, self).__init__(ctaEngine, setting)
         
         self.bg = BarGenerator(self.onBar, 15, self.onXminBar)        # 创建K线合成器对象
+        self.bg30 = BarGenerator(self.onBar, 30, self.on30minBar)
         self.am = ArrayManager()
-            
+        
+    #----------------------------------------------------------------------
+    def on30minBar(self, bar):
+        """"""
+        
+        
     #----------------------------------------------------------------------
     def onInit(self):
         """初始化策略（必须由用户继承实现）"""
@@ -185,7 +191,6 @@ class BollChannelStrategy(CtaTemplate):
 
     #----------------------------------------------------------------------
     def onTrade(self, trade):
-        """成交推送"""
         # 发出状态更新事件
         self.putEvent()
 

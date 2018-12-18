@@ -126,9 +126,11 @@ class AlgoEngine(object):
     #----------------------------------------------------------------------
     def subscribe(self, algo, vtSymbol):
         """"""
+        if vtSymbol == 'BTCUSD.BITMEX':
+            vtSymbol = 'XBTUSD.BITMEX'
         contract = self.mainEngine.getContract(vtSymbol)
         if not contract:
-            self.writeLog(u'%s订阅行情失败，找不到合约%s' %(algo.algoName, vtSymbol))
+            # self.writeLog(u'%s订阅行情失败，找不到合约%s' %(algo.algoName, vtSymbol))
             return        
 
         # 如果vtSymbol已存在于字典，说明已经订阅过

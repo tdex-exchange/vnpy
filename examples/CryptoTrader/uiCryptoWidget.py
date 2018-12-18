@@ -837,9 +837,6 @@ class TradingWidget(QtWidgets.QFrame):
     priceTypeList = [PRICETYPE_LIMITPRICE,
                      PRICETYPE_MARKETPRICE]
     
-    offsetList = [OFFSET_OPEN,
-                  OFFSET_CLOSE]
-    
     gatewayList = ['']
 
     #----------------------------------------------------------------------
@@ -873,13 +870,9 @@ class TradingWidget(QtWidgets.QFrame):
         labelSymbol = QtWidgets.QLabel(u'VT代码')
         labelPrice = QtWidgets.QLabel(vtText.PRICE)
         labelVolume = QtWidgets.QLabel(u'数量')
-        labelOffset = QtWidgets.QLabel(u'开平')
         
         self.comboPriceType = QtWidgets.QComboBox()
         self.comboPriceType.addItems(self.priceTypeList)
-        
-        self.comboOffset = QtWidgets.QComboBox()
-        self.comboOffset.addItems(self.offsetList)
         
         self.lineSymbol = QtWidgets.QLineEdit()
         
@@ -894,16 +887,14 @@ class TradingWidget(QtWidgets.QFrame):
         
         gridLeft = QtWidgets.QGridLayout()
         gridLeft.addWidget(labelPriceType, 0, 0)
-        gridLeft.addWidget(labelOffset, 1, 0)
-        gridLeft.addWidget(labelSymbol, 2, 0)
-        gridLeft.addWidget(labelPrice, 3, 0)
-        gridLeft.addWidget(labelVolume, 4, 0)
+        gridLeft.addWidget(labelSymbol, 1, 0)
+        gridLeft.addWidget(labelPrice, 2, 0)
+        gridLeft.addWidget(labelVolume, 3, 0)
         
         gridLeft.addWidget(self.comboPriceType, 0, 1)
-        gridLeft.addWidget(self.comboOffset, 1, 1)
-        gridLeft.addWidget(self.lineSymbol, 2, 1)
-        gridLeft.addWidget(self.linePrice, 3, 1)
-        gridLeft.addWidget(self.lineVolume, 4, 1)
+        gridLeft.addWidget(self.lineSymbol, 1, 1)
+        gridLeft.addWidget(self.linePrice, 2, 1)
+        gridLeft.addWidget(self.lineVolume, 3, 1)
         
         # 右边部分
         self.depthMonitor = DepthMonitor(self.mainEngine, self.eventEngine)
@@ -992,9 +983,32 @@ class TradingWidget(QtWidgets.QFrame):
     #----------------------------------------------------------------------
     def sendOrder(self, direction):
         """发单"""
+        print('进来发单')
+        goSymbol = ''
         vtSymbol = str(self.lineSymbol.text())
+        print(vtSymbol)
+        if vtSymbol == 'BTCUSD':
+            goSymbol = 'TDEX'
+            vtSymbol = 'XBTUSD'
         contract = self.mainEngine.getContract(vtSymbol)
+        # contract = {
+        #     'exchange': 'BITMEX',
+        #     'expiryDate': '',
+        #     'gatewayName': 'BITMEX',
+        #     'name': u'XBTUSD.BITMEX',
+        #     'optionType': u'',
+        #     'priceTick': 0.5,
+        #     'productClass': u'期货',
+        #     'rawData': None,
+        #     'size': -100000000,
+        #     'strikePrice': 0.0,
+        #     'symbol': u'XBTUSD',
+        #     'underlyingSymbol': '',
+        #     'vtSymbol': u'XBTUSD.BITMEX'
+        # }
+
         if not contract:
+            print('没有合约数据')
             return
 
         # 获取价格
@@ -1020,9 +1034,8 @@ class TradingWidget(QtWidgets.QFrame):
         req.volume = volume
         req.direction = direction
         req.priceType = text_type(self.comboPriceType.currentText())
-        req.offset = text_type(self.comboOffset.currentText())
         
-        self.mainEngine.sendOrder(req, contract.gatewayName)
+        self.mainEngine.sendOrder(req, goSymbol)
     
     #----------------------------------------------------------------------
     def sendBuyOrder(self):
@@ -1037,6 +1050,7 @@ class TradingWidget(QtWidgets.QFrame):
     #----------------------------------------------------------------------
     def cancelAll(self):
         """一键撤销所有委托"""
+
         l = self.mainEngine.getAllWorkingOrders()
         for order in l:
             req = VtCancelOrderReq()

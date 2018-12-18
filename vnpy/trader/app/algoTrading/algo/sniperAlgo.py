@@ -49,25 +49,25 @@ class SniperAlgo(AlgoTemplate):
         if self.vtOrderID:
             self.cancelAll()
             return
-        
+
         # 做多，且卖1价格小于等于执行目标价
         if (self.direction == DIRECTION_LONG and
             tick.askPrice1 <= self.price):
             orderVolume = self.volume - self.tradedVolume
             orderVolume = min(orderVolume, tick.askVolume1)
-            self.vtOrderID = self.buy(self.vtSymbol, self.price, 
+            self.vtOrderID = self.buy(self.vtSymbol, self.price,
                                       orderVolume, offset=self.offset)
-        
+
         # 做空
         elif (self.direction == DIRECTION_SHORT and
               tick.bidPrice1 >= self.price):
             orderVolume = self.volume - self.tradedVolume
             orderVolume = min(orderVolume, tick.bidVolume1)
-            self.vtOrderID = self.sell(self.vtSymbol, self.price, 
-                                       orderVolume, offset=self.offset)            
-    
+            self.vtOrderID = self.sell(self.vtSymbol, self.price,
+                                       orderVolume, offset=self.offset)
+
         # 更新变量
-        self.varEvent()        
+        self.varEvent()
         
     #----------------------------------------------------------------------
     def onTrade(self, trade):
@@ -92,7 +92,7 @@ class SniperAlgo(AlgoTemplate):
     def onTimer(self):
         """"""
         pass
-        
+
     #----------------------------------------------------------------------
     def onStop(self):
         """"""

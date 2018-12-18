@@ -29,7 +29,7 @@ class RtdEngine(object):
     ENGINE_NAME = 'RTD'
     
     settingFileName = 'RTD_setting.json'
-    settingFilePath = getJsonPath(settingFileName, __file__) 
+    settingfilePath = getJsonPath(settingFileName, __file__) 
 
     #----------------------------------------------------------------------
     def __init__(self, mainEngine, eventEngine):
@@ -46,7 +46,7 @@ class RtdEngine(object):
     #----------------------------------------------------------------------
     def loadSetting(self):
         """读取配置"""
-        with open(self.settingFilePath) as f:
+        with open(self.settingfilePath) as f:
             d = json.load(f)
             
             repAddress = d['repAddress']

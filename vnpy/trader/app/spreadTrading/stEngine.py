@@ -246,7 +246,7 @@ class StDataEngine(object):
         """订阅行情"""
         contract = self.mainEngine.getContract(vtSymbol)
         if not contract:
-            self.writeLog(u'订阅行情失败，找不到该合约%s' %vtSymbol)
+            # self.writeLog(u'订阅行情失败，找不到该合约%s' %vtSymbol)
             return
         
         req = VtSubscribeReq()

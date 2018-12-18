@@ -26,7 +26,7 @@ OFFSET_UNKNOWN = u'未知'
 # 状态常量
 STATUS_NOTTRADED = u'未成交'
 STATUS_PARTTRADED = u'部分成交'
-STATUS_ALLTRADED = u'全部成交'
+STATUS_ALLTRADED = u'已成交'
 STATUS_CANCELLED = u'已撤销'
 STATUS_REJECTED = u'拒单'
 STATUS_UNKNOWN = u'未知'
@@ -87,7 +87,6 @@ EXCHANGE_HUOBI = 'HUOBI'         # 火币比特币交易所
 EXCHANGE_LBANK = 'LBANK'         # LBANK比特币交易所
 EXCHANGE_ZB = 'ZB'		 # 比特币中国比特币交易所
 EXCHANGE_OKEX = 'OKEX'		 # OKEX比特币交易所
-EXCHANGE_OKEXFUTURE = 'OKEXFUTURE'		 # OKEX比特币交易所-期货
 EXCHANGE_BINANCE = "BINANCE"     # 币安比特币交易所
 EXCHANGE_BITFINEX = "BITFINEX"   # Bitfinex比特币交易所
 EXCHANGE_BITMEX = 'BITMEX'       # BitMEX比特币交易所
@@ -112,13 +111,3 @@ GATEWAYTYPE_FUTURES = 'futures'                 # 期货、期权、贵金属
 GATEWAYTYPE_INTERNATIONAL = 'international'     # 外盘
 GATEWAYTYPE_BTC = 'btc'                         # 比特币
 GATEWAYTYPE_DATA = 'data'                       # 数据（非交易）
-
-# K线周期类型
-INTERVAL_1M = u'1分钟'
-INTERVAL_5M = u'5分钟'
-INTERVAL_15M = u'15分钟'
-INTERVAL_30M = u'30分钟'
-INTERVAL_1H = u'1小时'
-INTERVAL_4H = u'4小时'
-INTERVAL_DAILY = u'日线'
-INTERVAL_WEEKLY = u'周线'

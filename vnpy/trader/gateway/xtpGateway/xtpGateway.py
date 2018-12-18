@@ -111,7 +111,7 @@ class XtpGateway(VtGateway):
     def connect(self):
         """连接"""
         try:
-            f = open(self.filePath)
+            f = file(self.filePath)
         except IOError:
             log = VtLogData()
             log.gatewayName = self.gatewayName
@@ -120,8 +120,7 @@ class XtpGateway(VtGateway):
             return
         
         # 解析json文件
-        setting = json.load(f) 
-        f.close()
+        setting = json.load(f)  
         try:
             userID = str(setting['userID'])
             password = str(setting['password'])

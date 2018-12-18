@@ -149,7 +149,7 @@ class IbGateway(VtGateway):
         """连接"""
         # 载入json文件
         try:
-            f = open(self.filePath)
+            f = file(self.filePath)
         except IOError:
             log = VtLogData()
             log.gatewayName = self.gatewayName
@@ -159,7 +159,6 @@ class IbGateway(VtGateway):
         
         # 解析json文件
         setting = json.load(f)
-        f.close()
         try:
             self.host = str(setting['host'])
             self.port = int(setting['port'])

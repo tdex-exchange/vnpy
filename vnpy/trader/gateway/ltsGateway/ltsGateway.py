@@ -78,7 +78,7 @@ class LtsGateway(VtGateway):
         """连接"""
         # 载入json 文件
         try:
-            f = open(self.filePath)
+            f = file(self.filePath)
         except IOError:
             log = VtLogData()
             log.gatewayName = self.gatewayName
@@ -88,7 +88,6 @@ class LtsGateway(VtGateway):
         
         # 解析json文件
         setting = json.load(f)
-        f.close()
         try:
             userID = str(setting['userID'])
             mdPassword = str(setting['mdPassword'])

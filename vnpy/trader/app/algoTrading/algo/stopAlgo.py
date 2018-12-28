@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import division
+
+import os
 from collections import OrderedDict
 
 from six import text_type
@@ -12,7 +14,27 @@ from vnpy.trader.uiQt import QtWidgets
 from vnpy.trader.app.algoTrading.algoTemplate import AlgoTemplate
 from vnpy.trader.app.algoTrading.uiAlgoWidget import AlgoWidget, QtWidgets
 
+from tdexApi import Tdex
+import json
 
+REST_HOST = 'https://tl.tdex.com/openapi/v1'
+base_dir = os.path.join(os.getcwd())
+filePath = os.path.join(base_dir, 'TDEX_connect.json')
+
+f = file(filePath)
+setting = json.load(f)
+
+apiKey = str(setting['apiKey'])
+apiSecret = str(setting['apiSecret'])
+# print(apiKey, apiSecret)
+
+options = {
+    'apiKey': apiKey,
+    'apiSecret': apiSecret,
+    'url': REST_HOST,
+}
+
+tdex = Tdex(options)
 
 STATUS_FINISHED = set([STATUS_ALLTRADED, STATUS_CANCELLED, STATUS_REJECTED])
 
@@ -39,7 +61,8 @@ class StopAlgo(AlgoTemplate):
         self.vtOrderID = ''     # 委托号
         self.tradedVolume = 0   # 成交数量
         self.orderStatus = ''   # 委托状态
-        
+        if self.vtSymbol == 'BTCUSD.TDEX':
+            self.vtSymbol = 'XBTUSD.BITMEX'
         self.subscribe(self.vtSymbol)
         self.paramEvent()
         self.varEvent()
@@ -50,6 +73,21 @@ class StopAlgo(AlgoTemplate):
         # 如果已经发出委托，则忽略行情事件
         if self.vtOrderID:
             return
+
+        data = {
+            'depth': 5,
+        }
+
+        depthData = tdex.orderBook(data)
+        # 获取行情
+        if not depthData or depthData['status'] != 0:
+            self.writeLog('获取TDEX行情接口异常')
+            print(depthData)
+            return
+
+        depthData = depthData['data']
+        askList = depthData['asks']
+        bidList = depthData['bids']
         
         # 如果到达止损位，才触发委托
         if (self.direction == DIRECTION_LONG and 
@@ -58,26 +96,51 @@ class StopAlgo(AlgoTemplate):
             price = self.stopPrice + self.priceAdd
             
             # 避免价格超过涨停价
-            if tick.upperLimit:    
-                price = min(price, tick.upperLimit)
+            # if tick.upperLimit:
+            #     price = min(price, tick.upperLimit)
                 
-            func = self.buy
+            # func = self.buy
+            # 发出委托
+            dataBuy = {
+                'cid': 1,
+                'side': 0,
+                'scale': 20,
+                'volume': int(self.totalVolume),
+                'visible': -1,
+                'price': int(price),
+            }
+            resBuy = tdex.futuresOpen(dataBuy)
+            print(resBuy)
+            if resBuy['status'] == 0:
+                self.writeLog(u'委托买入%s，数量%s，价格%s' % (self.vtSymbol, str(self.totalVolume), price))
+                self.stop()
         else:
             price = self.stopPrice - self.priceAdd
             
-            if tick.lowerLimit:
-                price = max(price, tick.lowerLimit)
+            # if tick.lowerLimit:
+            #     price = max(price, tick.lowerLimit)
                 
-            func = self.sell
-            
-        self.vtOrderID = func(self.vtSymbol, price, self.volume, offset=self.offset)
+            # func = self.sell
+            dataSell = {
+                'cid': 1,
+                'side': 1,
+                'scale': 20,
+                'volume': int(self.totalVolume),
+                'visible': -1,
+                'price': int(price),
+            }
+            resSell = tdex.futuresOpen(dataSell)
+            print(resSell)
+            if resSell['status'] == 0:
+                self.writeLog(u'委托卖出%s，数量%s，价格%s' % (self.vtSymbol, str(self.totalVolume), price))
+                self.stop()
+        # self.vtOrderID = func(self.vtSymbol, price, self.volume, offset=self.offset)
         
-        msg = u'停止单已触发，代码：%s，方向：%s, 价格：%s，数量：%s，开平：%s' %(self.vtSymbol,
-                                                                                self.direction,
-                                                                                self.stopPrice,
-                                                                                self.totalVolume,
-                                                                                self.offset)
-        self.writeLog(msg)
+        # msg = u'停止单已触发，代码：%s，方向：%s, 价格：%s，数量：%s' %(self.vtSymbol,
+        #                                                                         self.direction,
+        #                                                                         self.stopPrice,
+        #                                                                         self.totalVolume)
+        # self.writeLog(msg)
         
         # 更新变量
         self.varEvent()        
@@ -124,11 +187,13 @@ class StopAlgo(AlgoTemplate):
     def paramEvent(self):
         """更新参数"""
         d = OrderedDict()
+        if self.vtSymbol == 'XBTUSD.BITMEX':
+            self.vtSymbol = 'BTCUSD.TDEX'
         d[u'代码'] = self.vtSymbol
         d[u'方向'] = self.direction
         d[u'触发价格'] = self.stopPrice
         d[u'数量'] = self.totalVolume
-        d[u'开平'] = self.offset
+        # d[u'开平'] = self.offset
         self.putParamEvent(d)
 
 
@@ -187,8 +252,8 @@ class StopWidget(AlgoWidget):
         grid.addWidget(self.spinPrice, 2, 1)
         grid.addWidget(Label(u'数量'), 3, 0)
         grid.addWidget(self.spinVolume, 3, 1)
-        grid.addWidget(Label(u'开平'), 4, 0)
-        grid.addWidget(self.comboOffset, 4, 1)
+        # grid.addWidget(Label(u'开平'), 4, 0)
+        # grid.addWidget(self.comboOffset, 4, 1)
         grid.addWidget(Label(u'超价'), 5, 0)
         grid.addWidget(self.spinPriceAdd, 5, 1)        
         

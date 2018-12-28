@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import division
+
+import os
 from collections import OrderedDict
 
 from vnpy.trader.vtConstant import (DIRECTION_LONG, DIRECTION_SHORT,
@@ -16,6 +18,27 @@ from six import text_type
 
 STATUS_FINISHED = set([STATUS_ALLTRADED, STATUS_CANCELLED, STATUS_REJECTED])
 
+from tdexApi import Tdex
+import json
+
+REST_HOST = 'https://tl.tdex.com/openapi/v1'
+base_dir = os.path.join(os.getcwd())
+filePath = os.path.join(base_dir, 'TDEX_connect.json')
+
+f = file(filePath)
+setting = json.load(f)
+
+apiKey = str(setting['apiKey'])
+apiSecret = str(setting['apiSecret'])
+# print(apiKey, apiSecret)
+
+options = {
+    'apiKey': apiKey,
+    'apiSecret': apiSecret,
+    'url': REST_HOST,
+}
+
+tdex = Tdex(options)
 
 ########################################################################
 class DmaAlgo(AlgoTemplate):
@@ -39,7 +62,8 @@ class DmaAlgo(AlgoTemplate):
         self.vtOrderID = ''     # 委托号
         self.tradedVolume = 0   # 成交数量
         self.orderStatus = ''   # 委托状态
-        
+        if self.vtSymbol == 'BTCUSD.TDEX':
+            self.vtSymbol = 'XBTUSD.BITMEX'
         self.subscribe(self.vtSymbol)
         self.paramEvent()
         self.varEvent()
@@ -50,13 +74,58 @@ class DmaAlgo(AlgoTemplate):
         # 发出委托
         print('发出dma委托')
         if not self.vtOrderID:
+            dataBuy = {}
             if self.direction == DIRECTION_LONG:
-                func = self.buy
+                # func = self.buy
+                if self.priceType == '限价':
+                    dataBuy = {
+                        'cid': 1,
+                        'side': 0,
+                        'scale': 20,
+                        'volume': int(self.totalVolume),
+                        'visible': -1,
+                        'price': int(self.price),
+                    }
+                else:
+                    dataBuy = {
+                        'cid': 1,
+                        'side': 0,
+                        'scale': 20,
+                        'volume': int(self.totalVolume),
+                        'visible': -1,
+                    }
+                resBuy = tdex.futuresOpen(dataBuy)
+                print(resBuy)
+                if resBuy['status'] == 0:
+                    self.writeLog(u'委托买入%s，数量%s，价格%s' % (self.vtSymbol, self.totalVolume, self.price))
+                    self.stop()
             else:
-                func = self.sell
+                # func = self.sell
+                if self.priceType == '限价':
+                    dataSell = {
+                        'cid': 1,
+                        'side': 1,
+                        'scale': 20,
+                        'volume': self.totalVolume,
+                        'visible': -1,
+                        'price': int(self.price),
+                    }
+                else:
+                    dataSell = {
+                        'cid': 1,
+                        'side': 1,
+                        'scale': 20,
+                        'volume': self.totalVolume,
+                        'visible': -1,
+                    }
+                resSell = tdex.futuresOpen(dataSell)
+                print(resSell)
+                if resSell['status'] == 0:
+                    self.writeLog(u'委托卖出%s，数量%s，价格%s' % (self.vtSymbol, str(self.totalVolume), self.price))
+                    self.stop()
 
-            self.vtOrderID = func(self.vtSymbol, self.price, self.totalVolume,
-                                  self.priceType, self.offset)
+            # self.vtOrderID = func(self.vtSymbol, self.price, self.totalVolume,
+            #                       self.priceType, self.offset)
 
         # 更新变量
         self.varEvent()
@@ -103,12 +172,14 @@ class DmaAlgo(AlgoTemplate):
     def paramEvent(self):
         """更新参数"""
         d = OrderedDict()
+        if self.vtSymbol == 'XBTUSD.BITMEX':
+            self.vtSymbol = 'BTCUSD.TDEX'
         d[u'代码'] = self.vtSymbol
         d[u'方向'] = self.direction
         d[u'价格'] = self.price
         d[u'数量'] = self.totalVolume
         d[u'价格类型'] = self.priceType
-        d[u'开平'] = self.offset
+        # d[u'开平'] = self.offset
         self.putParamEvent(d)
 
 
@@ -168,8 +239,8 @@ class DmaWidget(AlgoWidget):
         grid.addWidget(self.spinVolume, 3, 1)
         grid.addWidget(Label(u'类型'), 4, 0)
         grid.addWidget(self.comboPriceType, 4, 1)
-        grid.addWidget(Label(u'开平'), 5, 0)
-        grid.addWidget(self.comboOffset, 5, 1)
+        # grid.addWidget(Label(u'开平'), 5, 0)
+        # grid.addWidget(self.comboOffset, 5, 1)
         
         return grid
     

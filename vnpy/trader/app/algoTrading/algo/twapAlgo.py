@@ -95,6 +95,10 @@ class TwapAlgo(AlgoTemplate):
         self.timerCount += 1
         self.timerTotal += 1
 
+        # tick = self.getTick('BTCUSD.BITMEX')
+        # if not tick:
+        #     return
+
         if self.vtSymbol == 'BTCUSD.TDEX':
             print('进入TDEX刷单')
             self.vtSymbol = 'BTCUSD.BITMEX'
@@ -107,10 +111,7 @@ class TwapAlgo(AlgoTemplate):
         # 每到间隔发一次委托
         if self.timerCount >= self.interval:
             self.timerCount = 0
-            
-            # tick = self.getTick(self.vtSymbol)
-            # if not tick:
-            #     return
+
             data = {
                 'depth': 5,
             }

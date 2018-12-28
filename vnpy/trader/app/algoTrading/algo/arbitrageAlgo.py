@@ -19,8 +19,8 @@ STATUS_FINISHED = set([STATUS_ALLTRADED, STATUS_CANCELLED, STATUS_REJECTED])
 ########################################################################
 class ArbitrageAlgo(AlgoTemplate):
     """Arbitrage算法，用于套利"""
-    
-    templateName = u'Arbitrage 套利'
+    #Arbitrage 套利
+    templateName = u''
 
     #----------------------------------------------------------------------
     def __init__(self, engine, setting, algoName):

@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import division
+
+import os
 from collections import OrderedDict
 
 from six import text_type
@@ -12,7 +14,27 @@ from vnpy.trader.uiQt import QtWidgets, QtGui
 from vnpy.trader.app.algoTrading.algoTemplate import AlgoTemplate
 from vnpy.trader.app.algoTrading.uiAlgoWidget import AlgoWidget
 
+from tdexApi import Tdex
+import json
 
+REST_HOST = 'https://tl.tdex.com/openapi/v1'
+base_dir = os.path.join(os.getcwd())
+filePath = os.path.join(base_dir, 'TDEX_connect.json')
+
+f = file(filePath)
+setting = json.load(f)
+
+apiKey = str(setting['apiKey'])
+apiSecret = str(setting['apiSecret'])
+# print(apiKey, apiSecret)
+
+options = {
+    'apiKey': apiKey,
+    'apiSecret': apiSecret,
+    'url': REST_HOST,
+}
+
+tdex = Tdex(options)
 
 STATUS_FINISHED = set([STATUS_ALLTRADED, STATUS_CANCELLED, STATUS_REJECTED])
 
@@ -38,7 +60,8 @@ class BlAlgo(AlgoTemplate):
         self.orderPrice = 0     # 委托价格
         self.vtOrderID = ''     # 委托号
         self.tradedVolume = 0   # 成交数量
-        
+        if self.vtSymbol == 'BTCUSD.TDEX':
+            self.vtSymbol = 'XBTUSD.BITMEX'
         self.subscribe(self.vtSymbol)
         self.paramEvent()
         self.varEvent()
@@ -48,21 +71,36 @@ class BlAlgo(AlgoTemplate):
         """"""
         # 缓存最新行情
         self.lastTick = tick
+
+        data = {
+            'depth': 5,
+        }
+
+        depthData = tdex.orderBook(data)
+        # 获取行情
+        if not depthData or depthData['status'] != 0:
+            self.writeLog('获取TDEX行情接口异常')
+            print(depthData)
+            return
+
+        depthData = depthData['data']
+        self.askList = depthData['asks']
+        self.bidList = depthData['bids']
         
         # 多头
         if self.direction == DIRECTION_LONG:
             # 如果没有委托，则发单
             if not self.vtOrderID:
                 self.buyBestLimit()
-            # 如果最新行情买价和委托价格不等，则撤单
-            elif self.orderPrice != self.lastTick.bidPrice1:
-                self.cancelAll()
+            # # 如果最新行情买价和委托价格不等，则撤单
+            # elif self.orderPrice != self.lastTick.bidPrice1:
+            #     self.cancelAll()
         # 空头
         if self.direction == DIRECTION_SHORT:
             if not self.vtOrderID:
                 self.sellBestLimit()
-            elif self.orderPrice != self.lastTick.askPrice1:
-                self.cancelAll()
+            # elif self.orderPrice != self.lastTick.askPrice1:
+            #     self.cancelAll()
     
         # 更新变量
         self.varEvent()        
@@ -112,27 +150,58 @@ class BlAlgo(AlgoTemplate):
     def paramEvent(self):
         """更新参数"""
         d = OrderedDict()
+        if self.vtSymbol == 'XBTUSD.BITMEX':
+            self.vtSymbol = 'BTCUSD.TDEX'
         d[u'代码'] = self.vtSymbol
         d[u'方向'] = self.direction
         d[u'数量'] = self.volume
-        d[u'开平'] = self.offset
+        # d[u'开平'] = self.offset
         self.putParamEvent(d)
     
     #----------------------------------------------------------------------
     def buyBestLimit(self):
         """在买一挂买单"""
         orderVolume = self.volume - self.tradedVolume
-        self.orderPrice = self.lastTick.bidPrice1
-        self.vtOrderID = self.buy(self.vtSymbol, self.orderPrice,
-                                  orderVolume, offset=self.offset)
+
+        self.orderPrice = float(self.bidList[0]['price'])
+        # self.vtOrderID = self.buy(self.vtSymbol, self.orderPrice,
+        #                           orderVolume, offset=self.offset)
+        # 发出委托
+        dataBuy = {
+            'cid': 1,
+            'side': 0,
+            'scale': 20,
+            'volume': int(orderVolume),
+            'visible': -1,
+            'price': int(self.orderPrice),
+        }
+        resBuy = tdex.futuresOpen(dataBuy)
+        print(resBuy)
+        if resBuy['status'] == 0:
+            self.writeLog(u'委托买入%s，数量%s，价格%s' % (self.vtSymbol, str(orderVolume), self.orderPrice))
+            self.stop()
     
     #----------------------------------------------------------------------
     def sellBestLimit(self):
         """在卖一挂卖单"""
         orderVolume = self.volume - self.tradedVolume
-        self.orderPrice = self.lastTick.askPrice1
-        self.vtOrderID = self.sell(self.vtSymbol, self.orderPrice,
-                                   orderVolume, offset=self.offset)        
+        self.orderPrice = float(self.askList[0]['price'])
+        # self.vtOrderID = self.sell(self.vtSymbol, self.orderPrice,
+        #                            orderVolume, offset=self.offset)
+        # 发出委托
+        dataSell = {
+            'cid': 1,
+            'side': 1,
+            'scale': 20,
+            'volume': int(orderVolume),
+            'visible': -1,
+            'price': int(self.orderPrice),
+        }
+        resSell = tdex.futuresOpen(dataSell)
+        print(resSell)
+        if resSell['status'] == 0:
+            self.writeLog(u'委托卖出%s，数量%s，价格%s' % (self.vtSymbol, str(orderVolume), self.orderPrice))
+            self.stop()
 
 
 ########################################################################
@@ -179,8 +248,8 @@ class BlWidget(AlgoWidget):
         grid.addWidget(self.comboDirection, 1, 1)
         grid.addWidget(Label(u'数量'), 2, 0)
         grid.addWidget(self.lineVolume, 2, 1)
-        grid.addWidget(Label(u'开平'), 3, 0)
-        grid.addWidget(self.comboOffset, 3, 1)
+        # grid.addWidget(Label(u'开平'), 3, 0)
+        # grid.addWidget(self.comboOffset, 3, 1)
         
         return grid
     
